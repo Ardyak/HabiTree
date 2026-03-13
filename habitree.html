@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HabiTree</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f0faf4;
+  --surface: #ffffff;
+  --border: #c9e8d5;
+  --text: #0d1f14;
+  --muted: #6b8f78;
+  --accent: #16a34a;
+  --accent2: #4ade80;
+  --green: #16a34a;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+  --shadow: 0 2px 16px rgba(22,163,74,0.08);
+  --shadow-lg: 0 8px 32px rgba(22,163,74,0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding-bottom: 90px; }
+
+/* HEADER */
+header {
+  background: var(--accent);
+  padding: 20px 20px 16px;
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo { font-weight: 700; font-size: 1.3rem; color: white; letter-spacing: -0.5px; }
+.logo span { opacity: 0.7; font-weight: 300; }
+.hdate { font-size: 0.7rem; color: rgba(255,255,255,0.7); font-family: 'DM Mono', monospace; }
+
+/* NAV */
+nav {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; position: sticky; top: 61px; z-index: 99;
+}
+nav button {
+  flex: 1; padding: 13px 6px; background: none; border: none;
+  border-bottom: 2.5px solid transparent; color: var(--muted);
+  font-family: 'DM Sans', sans-serif; font-size: 0.72rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; letter-spacing: 0.2px;
+}
+nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.page { display: none; padding: 18px 16px; }
+.page.active { display: block; }
+
+/* CARDS */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.card-title { font-weight: 700; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+
+/* PROGRESS BAR */
+.progress-wrap { margin-bottom: 18px; }
+.progress-bar-bg { height: 8px; background: var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 6px; }
+.progress-bar { height: 100%; background: linear-gradient(90deg, #16a34a, #4ade80); border-radius: 8px; transition: width 0.5s ease; }
+.progress-label { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); }
+.progress-count { font-family: 'DM Mono', monospace; font-weight: 500; color: var(--accent); }
+
+/* TIME GROUPS */
+.time-group { margin-bottom: 16px; }
+.time-group-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.time-group-icon { font-size: 1rem; }
+.time-group-label { font-weight: 700; font-size: 0.82rem; color: var(--text); }
+.time-group-count { font-size: 0.68rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-left: auto; }
+
+/* TASK ITEM */
+.task-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; background: var(--bg);
+  border: 1.5px solid var(--border); border-radius: 12px;
+  margin-bottom: 7px; transition: all 0.2s; cursor: pointer;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+.task-item:hover { border-color: var(--accent); background: #f5f8ff; }
+.task-item.done { opacity: 0.5; }
+.task-item.done .task-name { text-decoration: line-through; color: var(--muted); }
+
+.task-check {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--border); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; background: white;
+}
+.task-item.done .task-check { background: var(--green); border-color: var(--green); }
+.task-check::after { content: '✓'; font-size: 0.7rem; color: white; opacity: 0; transition: opacity 0.2s; }
+.task-item.done .task-check::after { opacity: 1; }
+
+.task-info { flex: 1; min-width: 0; }
+.task-name { font-weight: 600; font-size: 0.85rem; margin-bottom: 2px; }
+.task-meta { font-size: 0.66rem; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.task-time { font-family: 'DM Mono', monospace; }
+
+.priority-badge {
+  display: inline-block; padding: 1px 7px; border-radius: 20px;
+  font-size: 0.58rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.p1 { background: #fee2e2; color: #dc2626; }
+.p2 { background: #fef3c7; color: #d97706; }
+.p3 { background: #dcfce7; color: #16a34a; }
+.p4 { background: #f1f5f9; color: #64748b; }
+
+.streak-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 0.65rem; color: var(--yellow); font-weight: 700; }
+
+.task-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 2px 4px; flex-shrink: 0; }
+.task-del:hover { color: var(--red); }
+
+/* ADD TASK BTN */
+.add-task-btn {
+  width: 100%; padding: 11px; background: none; border: 1.5px dashed var(--border);
+  border-radius: 12px; color: var(--muted); font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem; cursor: pointer; transition: all 0.2s; margin-top: 4px;
+}
+.add-task-btn:hover { border-color: var(--accent); color: var(--accent); background: #f5f8ff; }
+
+/* AI SECTION */
+.ai-btn {
+  width: 100%; padding: 13px; background: linear-gradient(135deg, #16a34a, #4ade80);
+  color: white; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif;
+  font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: opacity 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.ai-btn:hover { opacity: 0.88; }
+.ai-result { background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 14px; margin-top: 12px; font-size: 0.82rem; line-height: 1.6; color: var(--text); }
+
+/* FORM */
+.finput { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.2s; }
+.finput:focus { border-color: var(--accent); background: white; }
+.flabel { display: block; font-size: 0.68rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+.fgroup { margin-bottom: 12px; }
+.frow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn-primary { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: opacity 0.2s; }
+.btn-primary:hover { opacity: 0.88; }
+.btn-ghost { width: 100%; padding: 11px; background: none; color: var(--muted); border: 1.5px solid var(--border); border-radius: 12px; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.85rem; cursor: pointer; margin-top: 8px; }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: flex-end; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal-box { background: var(--surface); border-radius: 22px 22px 0 0; width: 100%; max-width: 500px; max-height: 90vh; display: flex; flex-direction: column; animation: slideUp 0.28s ease; }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.modal-title { font-weight: 700; font-size: 1rem; }
+.modal-close { background: var(--bg); border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 1rem; color: var(--muted); }
+.modal-body { overflow-y: auto; padding: 18px 20px 28px; flex: 1; }
+
+/* HABIT PAGE */
+.habit-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 12px; margin-bottom: 7px; }
+.habit-info { flex: 1; }
+.habit-name { font-weight: 600; font-size: 0.85rem; margin-bottom: 2px; }
+.habit-meta { font-size: 0.66rem; color: var(--muted); }
+.habit-streak { font-size: 0.75rem; font-weight: 700; color: var(--yellow); }
+.habit-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 2px 4px; }
+.habit-del:hover { color: var(--red); }
+
+/* CHIPS */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.chip { padding: 5px 12px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--bg); color: var(--muted); font-size: 0.72rem; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.18s; }
+.chip.active { border-color: var(--accent); color: var(--accent); background: #f0fdf4; }
+
+/* STATUS */
+.status-box { padding: 24px; text-align: center; color: var(--muted); font-size: 0.82rem; }
+.loading-spin { font-size: 1.5rem; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty-state { text-align: center; padding: 24px 0; color: var(--muted); font-size: 0.82rem; }
+.reward-item { display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:12px; margin-top:6px; border:1.5px dashed #c9e8d5; background:#f0fdf4; transition:all 0.3s; }
+.reward-item.locked { opacity:0.45; filter:grayscale(0.3); cursor:not-allowed; }
+.reward-item.unlocked { border-color:#16a34a; background:#dcfce7; cursor:pointer; animation: rewardPop 0.4s ease; }
+.reward-item.redeemed { opacity:0.5; border-color:#c9e8d5; cursor:default; }
+@keyframes rewardPop { 0%{transform:scale(0.95);} 60%{transform:scale(1.03);} 100%{transform:scale(1);} }
+.reward-icon { font-size:1.3rem; flex-shrink:0; }
+.reward-info { flex:1; }
+.reward-name { font-weight:700; font-size:0.82rem; color:var(--text); }
+.reward-status { font-size:0.65rem; color:var(--muted); margin-top:1px; }
+.reward-check { width:22px; height:22px; border-radius:50%; border:2px solid #c9e8d5; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:0.7rem; }
+.reward-item.redeemed .reward-check { background:#16a34a; border-color:#16a34a; color:white; }
+.task-item.skipped { opacity:0.6; background:#fff7ed; border-color:#fed7aa; }
+.task-item.skipped .task-name { text-decoration: line-through; color:#9a6a4a; }
+.skip-reason { font-size:0.68rem; color:#d97706; margin-top:2px; font-style:italic; }
+.tomorrow-panel { background:#f0fdf4; border:1.5px solid #16a34a; border-radius:14px; padding:16px; margin-top:8px; animation: fadeIn 0.3s ease; }
+.tomorrow-panel.locked { background:#f8f9fa; border-color:#c9e8d5; opacity:0.7; }
+.tomorrow-title { font-weight:700; font-size:0.8rem; color:#16a34a; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+.tomorrow-locked-msg { font-size:0.78rem; color:var(--muted); text-align:center; padding:8px 0; }
+.chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.history-day { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px; box-shadow: var(--shadow); }
+.history-day-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; cursor: pointer; }
+.history-day-title { font-weight: 700; font-size: 0.82rem; }
+.history-day-pct { font-size: 0.75rem; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+.history-task { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.78rem; }
+.history-task:last-child { border-bottom: none; }
+.history-status { font-size: 0.75rem; flex-shrink: 0; }
+.history-task-name { flex: 1; color: var(--text); }
+.history-reason { font-size: 0.68rem; color: #d97706; font-style: italic; }
+.chart-title { font-weight: 700; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🌱 Habi<span>Tree</span></div>
+  <div class="hdate" id="hdate"></div>
+</header>
+<nav>
+  <button class="active" onclick="showPage('today')">Hari Ini</button>
+  <button onclick="showPage('habit')">Habit</button>
+  <button onclick="showPage('grafik')">Grafik</button>
+  <button onclick="showPage('ai')">AI</button>
+  <button onclick="showPage('settings')">⚙️</button>
+</nav>
+
+<!-- HARI INI -->
+<div class="page active" id="page-today">
+  <div class="card">
+    <div class="card-title">Progress Hari Ini</div>
+    <div class="progress-wrap">
+      <div class="progress-bar-bg"><div class="progress-bar" id="prog-bar" style="width:0%"></div></div>
+      <div class="progress-label"><span id="prog-label">0 dari 0 selesai</span><span class="progress-count" id="prog-pct">0%</span></div>
+    </div>
+  </div>
+  <div id="today-list"></div>
+  <button class="add-task-btn" onclick="openAddModal()">+ Tambah To-do Hari Ini</button>
+</div>
+
+<!-- GRAFIK -->
+<div class="page" id="page-grafik">
+  <div class="chart-wrap">
+    <div class="chart-title">📊 Completion Rate 7 Hari</div>
+    <canvas id="completionChart" height="180"></canvas>
+  </div>
+  <div id="history-log"></div>
+
+</div>
+
+<!-- HABIT -->
+<div class="page" id="page-habit">
+  <div class="card">
+    <div class="card-title">Habit Permanen</div>
+    <div id="habit-list"></div>
+    <button class="add-task-btn" onclick="openHabitModal()">+ Tambah Habit Baru</button>
+  </div>
+</div>
+
+<!-- AI PRIORITY -->
+<div class="page" id="page-ai">
+  <div class="card">
+    <div class="card-title">AI Priority Advisor</div>
+    <div class="fgroup">
+      <label class="flabel">Konteks hari ini (opsional)</label>
+      <textarea class="finput" id="ai-context" rows="3" placeholder="Misal: hari ini gw mau fokus cari kerja, lagi capek, ada deadline..." style="resize:none;line-height:1.5"></textarea>
+    </div>
+    <button class="ai-btn" onclick="getAIPriority()">
+      <span>✨</span> Minta Rekomendasi AI
+    </button>
+    <div id="ai-result-box"></div>
+  </div>
+
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="card">
+    <div class="card-title">Backup & Restore</div>
+    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:16px;line-height:1.6;">Data tersimpan di browser. Backup rutin biar aman kalau cache dihapus.</p>
+    <button class="btn-primary" onclick="exportData()" style="margin-bottom:10px;">⬇️ Export Backup (JSON)</button>
+    <label class="btn-ghost" style="display:block;text-align:center;padding:11px;border:1.5px solid var(--border);border-radius:12px;cursor:pointer;font-weight:600;font-size:0.85rem;color:var(--muted);">
+      ⬆️ Import Backup (JSON)
+      <input type="file" accept=".json" onchange="importData(event)" style="display:none;">
+    </label>
+    <div id="import-status" style="margin-top:10px;font-size:0.8rem;text-align:center;"></div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="color:var(--red);">Danger Zone</div>
+    <button onclick="resetData()" style="width:100%;padding:12px;background:none;border:1.5px solid var(--red);border-radius:12px;color:var(--red);font-family:'DM Sans',sans-serif;font-weight:700;font-size:0.88rem;cursor:pointer;">🗑️ Reset Semua Data</button>
+  </div>
+  <div class="card">
+    <div class="card-title">🔍 Debug Data</div>
+    <button class="btn-ghost" onclick="showDebug()">Lihat Data Done Hari Ini & Kemarin</button>
+    <div id="debug-out" style="margin-top:12px;font-size:0.72rem;font-family:monospace;white-space:pre-wrap;word-break:break-all;color:var(--muted);line-height:1.6;"></div>
+  </div>
+</div>
+
+<!-- MODAL SKIP -->
+<div class="modal-overlay" id="skipModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Gak Selesai 😞</div>
+      <button class="modal-close" onclick="closeModal('skipModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fgroup">
+        <label class="flabel">Kenapa gak selesai?</label>
+        <textarea class="finput" id="skip-reason" rows="3" placeholder="Misal: ketiduran, ada urusan mendadak..." style="resize:none;line-height:1.5;"></textarea>
+      </div>
+      <button class="btn-primary" onclick="saveSkip()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TOMORROW -->
+<div class="modal-overlay" id="tomorrowModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">To-do Besok</div>
+      <button class="modal-close" onclick="closeModal('tomorrowModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fgroup">
+        <label class="flabel">Nama Task</label>
+        <input class="finput" type="text" id="tmr-name" placeholder="Misal: Kirim lamaran kerja">
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Kelompok Waktu</label>
+        <div class="chips" id="tmr-time-chips">
+          <button class="chip active" onclick="selectChip(this,'tmr-time-chips')">🌅 Pagi</button>
+          <button class="chip" onclick="selectChip(this,'tmr-time-chips')">☀️ Siang</button>
+          <button class="chip" onclick="selectChip(this,'tmr-time-chips')">🌆 Sore</button>
+          <button class="chip" onclick="selectChip(this,'tmr-time-chips')">🌙 Malam</button>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="fgroup">
+          <label class="flabel">Jam (opsional)</label>
+          <input class="finput" type="time" id="tmr-time">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">Durasi (menit)</label>
+          <input class="finput" type="number" id="tmr-dur" placeholder="30">
+        </div>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Priority</label>
+        <div class="chips" id="tmr-priority-chips">
+          <button class="chip" onclick="selectChip(this,'tmr-priority-chips')">🔴 Tinggi</button>
+          <button class="chip active" onclick="selectChip(this,'tmr-priority-chips')">🟡 Sedang</button>
+          <button class="chip" onclick="selectChip(this,'tmr-priority-chips')">🔵 Rendah</button>
+          <button class="chip" onclick="selectChip(this,'tmr-priority-chips')">⚪ Santai</button>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="saveTomorrowTodo()">Tambah</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REWARD -->
+<div class="modal-overlay" id="rewardModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="reward-modal-title">Reward Kelompok</div>
+      <button class="modal-close" onclick="closeModal('rewardModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:14px;line-height:1.5;">Reward yang bisa lo nikmatin setelah semua task di kelompok ini selesai.</p>
+      <div class="fgroup">
+        <label class="flabel">Nama Reward</label>
+        <input class="finput" type="text" id="reward-name-input" placeholder="Misal: Main Genshin 1 jam">
+      </div>
+      <button class="btn-primary" onclick="saveReward()">Simpan Reward</button>
+      <button class="btn-ghost" id="reward-del-btn" onclick="deleteReward()" style="display:none;color:#ef4444;border-color:#ef4444;">Hapus Reward</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TAMBAH TODO -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="add-modal-title">Tambah To-do</div>
+      <button class="modal-close" onclick="closeModal('addModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fgroup">
+        <label class="flabel">Nama Task</label>
+        <input class="finput" type="text" id="todo-name" placeholder="Misal: Baca buku 30 menit">
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Kelompok Waktu</label>
+        <div class="chips" id="time-chips">
+          <button class="chip active" onclick="selectChip(this,'time-chips')">🌅 Pagi</button>
+          <button class="chip" onclick="selectChip(this,'time-chips')">☀️ Siang</button>
+          <button class="chip" onclick="selectChip(this,'time-chips')">🌆 Sore</button>
+          <button class="chip" onclick="selectChip(this,'time-chips')">🌙 Malam</button>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="fgroup">
+          <label class="flabel">Jam Mulai (opsional)</label>
+          <input class="finput" type="time" id="todo-time">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">Durasi (menit)</label>
+          <input class="finput" type="number" id="todo-dur" placeholder="30" min="1">
+        </div>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Priority</label>
+        <div class="chips" id="priority-chips">
+          <button class="chip p1-chip active" onclick="selectChip(this,'priority-chips')" style="border-color:#dc2626;color:#dc2626;background:#fee2e2;">🔴 Tinggi</button>
+          <button class="chip p2-chip" onclick="selectChip(this,'priority-chips')">🟡 Sedang</button>
+          <button class="chip p3-chip" onclick="selectChip(this,'priority-chips')">🔵 Rendah</button>
+          <button class="chip p4-chip" onclick="selectChip(this,'priority-chips')">⚪ Santai</button>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="saveTodo()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TAMBAH HABIT -->
+<div class="modal-overlay" id="habitModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="habit-modal-title">Tambah Habit</div>
+      <button class="modal-close" onclick="closeModal('habitModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fgroup">
+        <label class="flabel">Nama Habit</label>
+        <input class="finput" type="text" id="habit-name" placeholder="Misal: Olahraga 30 menit">
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Kelompok Waktu</label>
+        <div class="chips" id="htime-chips">
+          <button class="chip active" onclick="selectChip(this,'htime-chips')">🌅 Pagi</button>
+          <button class="chip" onclick="selectChip(this,'htime-chips')">☀️ Siang</button>
+          <button class="chip" onclick="selectChip(this,'htime-chips')">🌆 Sore</button>
+          <button class="chip" onclick="selectChip(this,'htime-chips')">🌙 Malam</button>
+        </div>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Frekuensi</label>
+        <div class="chips" id="freq-chips">
+          <button class="chip active" onclick="selectChip(this,'freq-chips');updateFreqUI()">📅 Harian</button>
+          <button class="chip" onclick="selectChip(this,'freq-chips');updateFreqUI()">📆 Mingguan</button>
+          <button class="chip" onclick="selectChip(this,'freq-chips');updateFreqUI()">🗓️ Bulanan</button>
+        </div>
+      </div>
+      <div id="freq-detail" style="margin-bottom:12px;display:none;"></div>
+      <div class="frow">
+        <div class="fgroup">
+          <label class="flabel">Jam Mulai (opsional)</label>
+          <input class="finput" type="time" id="habit-time">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">Durasi (menit)</label>
+          <input class="finput" type="number" id="habit-dur" placeholder="30" min="1">
+        </div>
+      </div>
+      <button class="btn-primary" onclick="saveHabit()">Simpan Habit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const GROQ_KEY = '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';
+const TIME_GROUPS = ['🌅 Pagi','☀️ Siang','🌆 Sore','🌙 Malam'];
+const PRIORITY_LABELS = ['🔴 Tinggi','🟡 Sedang','🔵 Rendah','⚪ Santai'];
+const PRIORITY_CLASSES = ['p1','p2','p3','p4'];
+
+const todayKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+
+// ─── STORAGE ────────────────────────────────────────────────
+const getHabits = () => JSON.parse(localStorage.getItem('hk_habits') || '[]');
+const saveHabits = v => localStorage.setItem('hk_habits', JSON.stringify(v));
+const getTodos = () => JSON.parse(localStorage.getItem('hk_todos') || '{}');
+const saveTodos = v => localStorage.setItem('hk_todos', JSON.stringify(v));
+const getStreaks = () => JSON.parse(localStorage.getItem('hk_streaks') || '{}');
+const saveStreaks = v => localStorage.setItem('hk_streaks', JSON.stringify(v));
+
+const getDone = () => JSON.parse(localStorage.getItem('hk_done') || '{}');
+const saveDone = v => localStorage.setItem('hk_done', JSON.stringify(v));
+const getRewards = () => JSON.parse(localStorage.getItem('hk_rewards') || '{}');
+const saveRewards = v => localStorage.setItem('hk_rewards', JSON.stringify(v));
+const getRewardDone = () => JSON.parse(localStorage.getItem('hk_reward_done') || '{}');
+const saveRewardDone = v => localStorage.setItem('hk_reward_done', JSON.stringify(v));
+const getSkipped = () => JSON.parse(localStorage.getItem('hk_skipped') || '{}');
+const saveSkipped = v => localStorage.setItem('hk_skipped', JSON.stringify(v));
+
+function checkAndResetStreaks() {
+  const habits = getHabits();
+  if (!habits.length) return;
+  const done = getDone();
+  const skipped = getSkipped();
+  const streaks = getStreaks();
+  const yd = new Date(); yd.setDate(yd.getDate() - 1);
+  const yesterday = yd.getFullYear()+'-'+String(yd.getMonth()+1).padStart(2,'0')+'-'+String(yd.getDate()).padStart(2,'0');
+  let changed = false;
+  const ydObj = new Date(); ydObj.setDate(ydObj.getDate() - 1);
+  habits.forEach(h => {
+    const hid = h.id;
+    const tid = 'habit_' + hid;
+    // Kalau kemarin bukan jadwalnya, skip — streak ga perlu direset
+    if (!isHabitActiveOnDate(h, ydObj)) return;
+    const wasDoneYesterday = !!(done[yesterday] && done[yesterday][tid]);
+    const wasSkippedYesterday = !!(skipped[yesterday] && skipped[yesterday][tid]);
+    if (!wasDoneYesterday && !wasSkippedYesterday && (streaks[hid] || 0) > 0) {
+      streaks[hid] = 0;
+      changed = true;
+    }
+  });
+  if (changed) saveStreaks(streaks);
+}
+
+// ─── PAGES ──────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  ['today','habit','grafik','ai','settings'].forEach((p,i) => { if (p === id) document.querySelectorAll('nav button')[i].classList.add('active'); });
+  if (id === 'today') renderToday();
+  if (id === 'habit') renderHabits();
+  if (id === 'grafik') renderGrafik();
+  if (id === 'ai') renderManualPriority();
+}
+
+// ─── RENDER TODAY ────────────────────────────────────────────
+function isHabitActiveOnDate(h, dateObj) {
+  const now = dateObj;
+  const freq = h.freq || 'harian';
+  if (freq === 'harian') {
+    const interval = h.dailyInterval || 1;
+    if (interval <= 1) return true;
+    const created = new Date(parseInt(h.id.replace('h_','')) || Date.now());
+    const createdDay = new Date(created.getFullYear(), created.getMonth(), created.getDate());
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayDiff = Math.round((day - createdDay) / (1000 * 60 * 60 * 24));
+    return dayDiff % interval === 0;
+  }
+  if (freq === 'mingguan') {
+    const days = h.freqDays || [];
+    return days.includes(now.getDay());
+  }
+  if (freq === 'bulanan') {
+    const tanggal = h.bulkTanggal || 1;
+    const interval = h.bulkInterval || 1;
+    if (now.getDate() !== tanggal) return false;
+    const created = new Date(parseInt(h.id.replace('h_','')) || Date.now());
+    const monthDiff = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
+    return monthDiff % interval === 0;
+  }
+  return true;
+}
+
+function isHabitActiveToday(h) {
+  const now = new Date();
+  const freq = h.freq || 'harian';
+  if (freq === 'harian') {
+    const interval = h.dailyInterval || 1;
+    if (interval <= 1) return true;
+    const created = new Date(parseInt(h.id.replace('h_','')) || Date.now());
+    const createdDay = new Date(created.getFullYear(), created.getMonth(), created.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayDiff = Math.round((today - createdDay) / (1000 * 60 * 60 * 24));
+    return dayDiff % interval === 0;
+  }
+  if (freq === 'mingguan') {
+    const days = h.freqDays || [];
+    return days.includes(now.getDay()); // 0=Minggu,1=Sen,...
+  }
+  if (freq === 'bulanan') {
+    const tanggal = h.bulkTanggal || 1;
+    const interval = h.bulkInterval || 1;
+    if (now.getDate() !== tanggal) return false;
+    // Cek apakah bulan ini adalah bulan yang tepat berdasarkan interval
+    // Referensi dari bulan pertama habit dibuat
+    const created = new Date(parseInt(h.id.replace('h_','')) || Date.now());
+    const monthDiff = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
+    return monthDiff % interval === 0;
+  }
+  return true;
+}
+
+function getTomorrowKey() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function allResolved() {
+  const d = todayKey();
+  const tasks = getAllTodayTasks();
+  if (!tasks.length) return false;
+  const done = getDone()[d] || {};
+  const skipped = getSkipped()[d] || {};
+  return tasks.every(t => done[t.id] || (skipped[t.id] && skipped[t.id].reason));
+}
+
+function getAllTodayTasks() {
+  const d = todayKey();
+  const habits = getHabits().filter(isHabitActiveToday);
+  const todos = (getTodos()[d] || []);
+  const all = [
+    ...habits.map(h => ({...h, isHabit: true, id: 'habit_'+h.id})),
+    ...todos.map(t => ({...t, isHabit: false}))
+  ];
+  const pOrder = {'🔴 Tinggi':0,'🟡 Sedang':1,'🔵 Rendah':2,'⚪ Santai':3};
+  all.sort((a,b) => (pOrder[a.priority]??3) - (pOrder[b.priority]??3));
+  return all;
+}
+
+function renderToday() {
+  const d = todayKey();
+  const done = getDone()[d] || {};
+  const tasks = getAllTodayTasks();
+  const total = tasks.length;
+  const skippedToday = getSkipped()[d] || {};
+  const resolvedCount = tasks.filter(t => done[t.id] || (skippedToday[t.id] && skippedToday[t.id].reason)).length;
+  const doneCount = tasks.filter(t => done[t.id]).length;
+  const pct = total ? Math.round((doneCount/total)*100) : 0;
+
+  document.getElementById('prog-bar').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = `${doneCount} selesai · ${resolvedCount - doneCount} skip · ${total} total`;
+  document.getElementById('prog-pct').textContent = pct + '%';
+
+  const container = document.getElementById('today-list');
+  if (!total) {
+    container.innerHTML = `<div class="card"><div class="empty-state">😴 Belum ada task hari ini.<br>Tambah to-do atau cek halaman Habit!</div></div>`;
+    return;
+  }
+
+  // Group by waktu
+  const groups = {};
+  TIME_GROUPS.forEach(g => groups[g] = []);
+  tasks.forEach(t => { if (groups[t.waktu]) groups[t.waktu].push(t); });
+
+  const rewards = getRewards();
+  const rewardDone = getRewardDone()[d] || {};
+
+  const skipped = getSkipped()[d] || {};
+  const tomorrowTodos = getTodos()[getTomorrowKey()] || [];
+  const resolved = allResolved();
+
+  container.innerHTML = TIME_GROUPS.map(grp => {
+    const items = groups[grp];
+    const reward = rewards[grp];
+    if (!items.length && !reward) return '';
+    const grpDone = items.filter(t => done[t.id]).length;
+    const grpResolved = items.every(t => done[t.id] || (skipped[t.id] && skipped[t.id].reason));
+    const allDone = items.length > 0 && grpResolved;
+    const isRedeemed = rewardDone[grp];
+    const rewardHTML = reward ? rewardItemHTML(grp, reward, allDone, isRedeemed) : 
+      `<div onclick="openRewardModal('${grp}')" style="text-align:center;padding:8px;font-size:0.72rem;color:var(--muted);cursor:pointer;border-radius:8px;border:1px dashed var(--border);margin-top:6px;">＋ Tambah reward untuk ${grp.split(' ')[1]}</div>`;
+    return `<div class="card">
+      <div class="time-group-header">
+        <span class="time-group-icon">${grp.split(' ')[0]}</span>
+        <span class="time-group-label">${grp.split(' ')[1]}</span>
+        <span class="time-group-count">${grpDone}/${items.length}</span>
+      </div>
+      ${items.map(t => taskHTML(t, done[t.id])).join('')}
+      ${rewardHTML}
+    </div>`;
+  }).join('') + tomorrowPanelHTML(resolved, getTodos()[getTomorrowKey()] || []);
+}
+
+function tomorrowPanelHTML(unlocked, todos) {
+  const tmr = new Date(); tmr.setDate(tmr.getDate()+1);
+  const tmrLabel = tmr.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long'});
+  if (!unlocked) {
+    return `<div class="tomorrow-panel locked">
+      <div class="tomorrow-title">🔒 Planning Besok</div>
+      <div class="tomorrow-locked-msg">Selesaikan atau tandai semua task hari ini dulu...</div>
+    </div>`;
+  }
+  const listHTML = todos.length ? todos.map((t,i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:white;border:1px solid #c9e8d5;border-radius:10px;margin-bottom:6px;">
+      <div style="flex:1;font-size:0.82rem;font-weight:600;">${t.name}</div>
+      <span style="font-size:0.65rem;background:#dcfce7;color:#16a34a;padding:1px 6px;border-radius:4px;">${t.waktu.split(' ')[1]}</span>
+      <button onclick="delTomorrowTodo(${i})" style="background:none;border:none;color:#9a9690;cursor:pointer;font-size:0.9rem;">×</button>
+    </div>`).join('') : '<div style="font-size:0.78rem;color:var(--muted);text-align:center;padding:6px 0;">Belum ada rencana besok.</div>';
+  return `<div class="tomorrow-panel">
+    <div class="tomorrow-title">📋 Planning Besok <span style="font-weight:400;font-size:0.7rem;color:var(--muted);">${tmrLabel}</span></div>
+    ${listHTML}
+    <button class="add-task-btn" style="margin-top:6px;" onclick="openTomorrowModal()">+ Tambah To-do Besok</button>
+  </div>`;
+}
+
+function rewardItemHTML(grp, reward, unlocked, redeemed) {
+  const statusText = redeemed ? 'Sudah diredeem ✓ — tap untuk cancel' : unlocked ? 'Selesai semua! Klik untuk redeem 🎉' : 'Selesaikan semua task dulu...';
+  const cls = redeemed ? 'redeemed' : unlocked ? 'unlocked' : 'locked';
+  const onclick = redeemed ? `unredeemReward('${grp}')` : unlocked ? `redeemReward('${grp}')` : '';
+  return `<div class="reward-item ${cls}" onclick="${onclick}">
+    <div class="reward-icon">🎁</div>
+    <div class="reward-info">
+      <div class="reward-name">${reward}</div>
+      <div class="reward-status">${statusText}</div>
+    </div>
+    <div class="reward-check">${redeemed ? '✓' : unlocked ? '!' : '🔒'}</div>
+    ${!redeemed ? `<button onclick="event.stopPropagation();editReward('${grp}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.7rem;padding:2px;">✏️</button>` : ''}
+  </div>`;
+}
+
+function taskHTML(t, isDone) {
+  const pIdx = PRIORITY_LABELS.indexOf(t.priority);
+  const pClass = pIdx >= 0 ? PRIORITY_CLASSES[pIdx] : 'p4';
+  const timeMeta = t.jam ? `🕐 ${t.jam}${t.durasi ? ` · ${t.durasi} mnt` : ''}` : t.durasi ? `⏱ ${t.durasi} mnt` : '';
+  const streaks = getStreaks();
+  const _habitId = t.isHabit ? t.id.replace('habit_','') : t.id;
+  const streak = t.isHabit && streaks[_habitId] ? `<span class="streak-badge">🔥 ${streaks[_habitId]}</span>` : '';
+  const habitIcon = t.isHabit ? '<span style="font-size:0.6rem;background:#dcfce7;color:#16a34a;padding:1px 5px;border-radius:4px;font-weight:700;">HABIT</span>' : '';
+
+  const _d = todayKey();
+  const _skippedMap = getSkipped()[_d] || {};
+  const skipData = _skippedMap[t.id];
+  const isSkipped = !isDone && skipData && skipData.reason;
+  return `<div class="task-item ${isDone ? 'done' : isSkipped ? 'skipped' : ''}" onclick="${!isDone && !isSkipped ? `toggleDone('${t.id}')` : ''}">
+    <div class="task-check" onclick="event.stopPropagation();${isDone||isSkipped ? `undoTask('${t.id}')` : `toggleDone('${t.id}')`}" style="cursor:pointer;"></div>
+    <div class="task-info">
+      <div class="task-name">${t.name}</div>
+      <div class="task-meta">
+        ${timeMeta ? `<span class="task-time">${timeMeta}</span>` : ''}
+        <span class="priority-badge ${pClass}">${t.priority || '⚪ Santai'}</span>
+        ${habitIcon}
+        ${streak}
+      </div>
+      ${isSkipped ? `<div class="skip-reason">⚠️ ${skipData.reason}</div>` : ''}
+    </div>
+    <div style="display:flex;gap:10px;flex-shrink:0;align-items:center;">
+      ${!isDone && !isSkipped ? `<button class="task-del" onclick="event.stopPropagation();openSkipModal('${t.id}')" title="Gak selesai" style="font-size:0.85rem;color:#d97706;">⚠️</button>` : ''}
+      ${!t.isHabit ? `
+        <button class="task-del" onclick="event.stopPropagation();editTodo('${t.id}')" title="Edit" style="font-size:0.75rem;">✏️</button>
+        <button class="task-del" onclick="event.stopPropagation();delTodo('${t.id}')" title="Hapus">×</button>` :
+        `<button class="task-del" onclick="event.stopPropagation();editHabit('${t.id.replace('habit_','')}');" title="Edit" style="font-size:0.75rem;">✏️</button>`
+      }
+    </div>
+  </div>`;
+}
+
+function toggleDone(taskId) {
+  const d = todayKey();
+  const done = getDone();
+  if (!done[d]) done[d] = {};
+  const wasDone = done[d][taskId] === true;
+  done[d][taskId] = !wasDone;
+  saveDone(done);
+
+  // Update streak kalau habit
+  if (taskId.startsWith('habit_')) {
+    const habitId = taskId.replace('habit_', '');
+    const streaks = getStreaks();
+    if (!wasDone) {
+      streaks[habitId] = (streaks[habitId] || 0) + 1;
+    } else {
+      streaks[habitId] = Math.max(0, (streaks[habitId] || 0) - 1);
+    }
+    saveStreaks(streaks);
+  }
+  renderToday();
+}
+
+function delTodo(id) {
+  const d = todayKey();
+  const todos = getTodos();
+  if (todos[d]) {
+    todos[d] = todos[d].filter(t => t.id !== id);
+    saveTodos(todos);
+  }
+  renderToday();
+}
+
+// ─── ADD TODO MODAL ─────────────────────────────────────────
+let _editingTodoId = null;
+
+function openAddModal() {
+  _editingTodoId = null;
+  document.getElementById('add-modal-title').textContent = 'Tambah To-do';
+  document.getElementById('todo-name').value = '';
+  document.getElementById('todo-time').value = '';
+  document.getElementById('todo-dur').value = '';
+  document.querySelector('#time-chips .chip').click();
+  document.querySelector('#priority-chips .chip').click();
+  openModal('addModal');
+  setTimeout(() => document.getElementById('todo-name').focus(), 300);
+}
+
+function editTodo(id) {
+  const d = todayKey();
+  const todos = getTodos();
+  const t = (todos[d]||[]).find(t => t.id === id);
+  if (!t) return;
+  _editingTodoId = id;
+  document.getElementById('add-modal-title').textContent = 'Edit To-do';
+  document.getElementById('todo-name').value = t.name;
+  document.getElementById('todo-time').value = t.jam || '';
+  document.getElementById('todo-dur').value = t.durasi || '';
+  // Set chip waktu
+  document.querySelectorAll('#time-chips .chip').forEach(c => {
+    c.classList.toggle('active', c.textContent === t.waktu);
+  });
+  // Set chip priority
+  document.querySelectorAll('#priority-chips .chip').forEach(c => {
+    c.classList.toggle('active', c.textContent === t.priority);
+  });
+  openModal('addModal');
+  setTimeout(() => document.getElementById('todo-name').focus(), 300);
+}
+
+function saveTodo() {
+  const name = document.getElementById('todo-name').value.trim();
+  if (!name) { alert('Isi nama task!'); return; }
+  const waktu = document.querySelector('#time-chips .chip.active')?.textContent || '🌅 Pagi';
+  const jam = document.getElementById('todo-time').value;
+  const durasi = parseInt(document.getElementById('todo-dur').value) || null;
+  const priority = document.querySelector('#priority-chips .chip.active')?.textContent || '⚪ Santai';
+  const d = todayKey();
+  const todos = getTodos();
+  if (!todos[d]) todos[d] = [];
+  if (_editingTodoId) {
+    const t = todos[d].find(t => t.id === _editingTodoId);
+    if (t) { t.name = name; t.waktu = waktu; t.jam = jam; t.durasi = durasi; t.priority = priority; }
+  } else {
+    todos[d].push({ id: 'todo_' + Date.now(), name, waktu, jam, durasi, priority });
+  }
+  saveTodos(todos);
+  closeModal('addModal');
+  renderToday();
+}
+
+// ─── HABIT ──────────────────────────────────────────────────
+function renderHabits() {
+  const habits = getHabits();
+  const streaks = getStreaks();
+  const el = document.getElementById('habit-list');
+  if (!habits.length) {
+    el.innerHTML = `<div class="empty-state">Belum ada habit.<br>Tambah habit pertama lo!</div>`;
+    return;
+  }
+  el.innerHTML = habits.map(h => {
+    const streak = streaks[h.id] || 0;
+    const timeMeta = h.jam ? `${h.jam}${h.durasi ? ` · ${h.durasi} mnt` : ''}` : h.durasi ? `${h.durasi} mnt` : '';
+    const freqLabel = h.freq === 'mingguan'
+      ? `Mingguan${(h.weekInterval||1) > 1 ? ' / '+h.weekInterval+' minggu' : ''} (${(h.freqDays||[]).map(d=>['Min','Sen','Sel','Rab','Kam','Jum','Sab'][d]).join(', ')})`
+      : h.freq === 'bulanan'
+      ? `Setiap ${h.bulkInterval||1} bulan (tgl ${h.bulkTanggal||1})`
+      : h.dailyInterval && h.dailyInterval > 1 ? `Setiap ${h.dailyInterval} hari` : 'Harian';
+    return `<div class="habit-item">
+      <div class="habit-info">
+        <div class="habit-name">${h.name}</div>
+        <div class="habit-meta">${h.waktu}${timeMeta ? ' · ' + timeMeta : ''} · ${freqLabel}</div>
+      </div>
+      <div class="habit-streak">🔥 ${streak}</div>
+      <button class="habit-del" onclick="editHabit('${h.id}')" style="font-size:0.75rem;margin-right:2px;">✏️</button>
+      <button class="habit-del" onclick="delHabit('${h.id}')">×</button>
+    </div>`;
+  }).join('');
+}
+
+let _editingHabitId = null;
+
+const HARI = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+
+function updateFreqUI() {
+  const freq = document.querySelector('#freq-chips .chip.active')?.textContent || '';
+  const detail = document.getElementById('freq-detail');
+  if (freq.includes('Mingguan')) {
+    detail.style.display = 'block';
+    detail.innerHTML = `
+      <div class="fgroup" style="margin-bottom:8px;">
+        <label class="flabel">Setiap berapa minggu</label>
+        <select class="finput" id="week-interval">
+          <option value="1">Setiap minggu</option>
+          <option value="2">2 minggu sekali</option>
+          <option value="3">3 minggu sekali</option>
+        </select>
+      </div>
+      <label class="flabel">Hari</label><div class="chips" id="day-chips" style="flex-wrap:wrap;">
+        ${HARI.map((h,i) => `<button class="chip" onclick="toggleMultiChip(this,'day-chips')" data-val="${i}">${h}</button>`).join('')}
+      </div>`;
+  } else if (freq.includes('Bulanan')) {
+    detail.style.display = 'block';
+    detail.innerHTML = `
+      <div class="frow" style="margin-bottom:8px;">
+        <div class="fgroup" style="margin-bottom:0">
+          <label class="flabel">Tanggal mulai</label>
+          <input class="finput" type="number" id="bulk-tanggal" placeholder="1" min="1" max="31" value="1">
+        </div>
+        <div class="fgroup" style="margin-bottom:0">
+          <label class="flabel">Setiap berapa bulan</label>
+          <select class="finput" id="bulk-interval">
+            <option value="1">1 bulan</option>
+            <option value="2">2 bulan</option>
+            <option value="3">3 bulan</option>
+            <option value="6">6 bulan</option>
+            <option value="12">12 bulan (tahunan)</option>
+          </select>
+        </div>
+      </div>`;
+  } else if (freq.includes('Harian')) {
+    detail.style.display = 'block';
+    detail.innerHTML = `
+      <div class="fgroup" style="margin-bottom:0">
+        <label class="flabel">Setiap berapa hari</label>
+        <select class="finput" id="daily-interval">
+          <option value="1">Setiap hari</option>
+          <option value="2">2 hari sekali</option>
+          <option value="3">3 hari sekali</option>
+          <option value="4">4 hari sekali</option>
+          <option value="5">5 hari sekali</option>
+          <option value="6">6 hari sekali</option>
+          <option value="7">7 hari sekali</option>
+        </select>
+      </div>`;
+  } else {
+    detail.style.display = 'none';
+  }
+}
+
+function toggleMultiChip(el, groupId) {
+  el.classList.toggle('active');
+}
+
+function openHabitModal() {
+  _editingHabitId = null;
+  document.getElementById('habit-modal-title').textContent = 'Tambah Habit';
+  document.getElementById('habit-name').value = '';
+  document.getElementById('habit-time').value = '';
+  document.getElementById('habit-dur').value = '';
+  document.querySelector('#htime-chips .chip').click();
+  document.querySelector('#freq-chips .chip').click();
+  updateFreqUI();
+  openModal('habitModal');
+  setTimeout(() => document.getElementById('habit-name').focus(), 300);
+}
+
+function editHabit(id) {
+  const h = getHabits().find(h => h.id === id);
+  if (!h) return;
+  _editingHabitId = id;
+  document.getElementById('habit-modal-title').textContent = 'Edit Habit';
+  document.getElementById('habit-name').value = h.name;
+  document.getElementById('habit-time').value = h.jam || '';
+  document.getElementById('habit-dur').value = h.durasi || '';
+  document.querySelectorAll('#htime-chips .chip').forEach(c => {
+    c.classList.toggle('active', c.textContent === h.waktu);
+  });
+  // Set frekuensi
+  const freq = h.freq || 'harian';
+  document.querySelectorAll('#freq-chips .chip').forEach(c => {
+    c.classList.toggle('active', c.textContent.toLowerCase().includes(freq));
+  });
+  updateFreqUI();
+  if (freq === 'harian') {
+    setTimeout(() => {
+      const di = document.getElementById('daily-interval');
+      if (di) di.value = h.dailyInterval || 1;
+    }, 50);
+  }
+  // Restore selected days/dates
+  if (freq === 'mingguan' && h.freqDays) {
+    setTimeout(() => {
+      const wi = document.getElementById('week-interval');
+      if (wi) wi.value = h.weekInterval || 1;
+      document.querySelectorAll('#day-chips .chip').forEach(c => {
+        c.classList.toggle('active', h.freqDays.includes(parseInt(c.dataset.val)));
+      });
+    }, 50);
+  }
+  if (freq === 'bulanan') {
+    setTimeout(() => {
+      const tgl = document.getElementById('bulk-tanggal');
+      const intv = document.getElementById('bulk-interval');
+      if (tgl) tgl.value = h.bulkTanggal || 1;
+      if (intv) intv.value = h.bulkInterval || 1;
+    }, 50);
+  }
+  openModal('habitModal');
+  setTimeout(() => document.getElementById('habit-name').focus(), 300);
+}
+
+function saveHabit() {
+  const name = document.getElementById('habit-name').value.trim();
+  if (!name) { alert('Isi nama habit!'); return; }
+  const waktu = document.querySelector('#htime-chips .chip.active')?.textContent || '🌅 Pagi';
+  const jam = document.getElementById('habit-time').value;
+  const durasi = parseInt(document.getElementById('habit-dur').value) || null;
+  const freqText = document.querySelector('#freq-chips .chip.active')?.textContent || '';
+  const freq = freqText.includes('Mingguan') ? 'mingguan' : freqText.includes('Bulanan') ? 'bulanan' : 'harian';
+  const freqDays = freq === 'mingguan'
+    ? [...document.querySelectorAll('#day-chips .chip.active')].map(c => parseInt(c.dataset.val))
+    : [];
+  const weekInterval = freq === 'mingguan' ? parseInt(document.getElementById('week-interval')?.value || '1') : 1;
+  const dailyInterval = freq === 'harian' ? parseInt(document.getElementById('daily-interval')?.value || '1') : 1;
+  let freqDates = [], bulkInterval = 1, bulkTanggal = 1;
+  if (freq === 'bulanan') {
+    bulkTanggal = parseInt(document.getElementById('bulk-tanggal')?.value) || 1;
+    bulkInterval = parseInt(document.getElementById('bulk-interval')?.value) || 1;
+    if (!bulkTanggal || bulkTanggal < 1 || bulkTanggal > 31) { alert('Isi tanggal yang valid (1-31)!'); return; }
+  }
+  if (freq === 'mingguan' && !freqDays.length) { alert('Pilih minimal 1 hari!'); return; }
+  const habits = getHabits();
+  if (_editingHabitId) {
+    const h = habits.find(h => h.id === _editingHabitId);
+    if (h) { h.name = name; h.waktu = waktu; h.jam = jam; h.durasi = durasi; h.priority = '🔴 Tinggi'; h.freq = freq; h.freqDays = freqDays; h.freqDates = freqDates; h.bulkInterval = bulkInterval; h.bulkTanggal = bulkTanggal; h.dailyInterval = dailyInterval; h.weekInterval = weekInterval; }
+  } else {
+    habits.push({ id: 'h_' + Date.now(), name, waktu, jam, durasi, priority: '🔴 Tinggi', freq, freqDays, freqDates, bulkInterval, bulkTanggal, dailyInterval, weekInterval });
+  }
+  saveHabits(habits);
+  closeModal('habitModal');
+  renderHabits();
+  renderToday();
+}
+
+function delHabit(id) {
+  const habits = getHabits().filter(h => h.id !== id);
+  saveHabits(habits);
+  const streaks = getStreaks();
+  delete streaks[id];
+  saveStreaks(streaks);
+  renderHabits();
+}
+
+// ─── AI PRIORITY ─────────────────────────────────────────────
+function renderManualPriority() {
+  const tasks = getAllTodayTasks();
+  const done = getDone()[todayKey()] || {};
+  const el = document.getElementById('manual-priority-list');
+  if (!tasks.length) {
+    el.innerHTML = `<div class="empty-state">Belum ada task hari ini.</div>`;
+    return;
+  }
+  el.innerHTML = tasks.filter(t => !done[t.id]).map(t => {
+    const pIdx = PRIORITY_LABELS.indexOf(t.priority);
+    const pClass = pIdx >= 0 ? PRIORITY_CLASSES[pIdx] : 'p4';
+    const priorityEl = t.isHabit
+      ? `<span style="padding:4px 10px;background:#fee2e2;color:#dc2626;border-radius:8px;font-size:0.72rem;font-weight:700;">🔴 Tinggi · Terkunci</span>`
+      : `<select onchange="changePriority('${t.id}','${t.isHabit}',this.value)" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.75rem;background:var(--bg);outline:none;">
+          ${PRIORITY_LABELS.map(p => `<option ${t.priority===p?'selected':''}>${p}</option>`).join('')}
+        </select>`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;margin-bottom:7px;">
+      <div style="flex:1;font-weight:600;font-size:0.85rem;">${t.name}</div>
+      ${priorityEl}
+    </div>`;
+  }).join('');
+}
+
+function changePriority(id, isHabit, newPriority) {
+  if (isHabit === 'true') {
+    const habits = getHabits();
+    const h = habits.find(h => 'habit_'+h.id === id);
+    if (h) h.priority = newPriority;
+    saveHabits(habits);
+  } else {
+    const d = todayKey();
+    const todos = getTodos();
+    const t = (todos[d]||[]).find(t => t.id === id);
+    if (t) t.priority = newPriority;
+    saveTodos(todos);
+  }
+}
+
+async function getAIPriority() {
+  const tasks = getAllTodayTasks();
+  const done = getDone()[todayKey()] || {};
+  const pending = tasks.filter(t => !done[t.id]);
+  if (!pending.length) {
+    document.getElementById('ai-result-box').innerHTML = `<div class="ai-result">Semua task udah selesai! 🎉</div>`;
+    return;
+  }
+  const context = document.getElementById('ai-context').value.trim();
+  const taskList = pending.map((t,i) => `${i+1}. ${t.name} (${t.waktu}${t.jam?' jam '+t.jam:''}${t.durasi?' '+t.durasi+' mnt':''}) - priority saat ini: ${t.priority||'belum diset'}`).join('\n');
+
+  document.getElementById('ai-result-box').innerHTML = `<div class="status-box"><div class="loading-spin">✨</div><div>AI lagi analisis...</div></div>`;
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        temperature: 0.3,
+        messages: [{
+          role: 'user',
+          content: `Kamu adalah productivity coach. Berikut task yang harus diselesaikan hari ini:\n\n${taskList}\n\n${context ? 'Konteks: ' + context : ''}\n\nBerikan rekomendasi urutan pengerjaan yang optimal dan alasan singkat kenapa. Gunakan bahasa Indonesia yang casual dan encouraging. Maksimal 200 kata.`
+        }]
+      })
+    });
+    const data = await res.json();
+    const text = data.choices[0].message.content;
+    document.getElementById('ai-result-box').innerHTML = `<div class="ai-result">${text.replace(/\n/g,'<br>')}</div>`;
+  } catch(e) {
+    document.getElementById('ai-result-box').innerHTML = `<div class="ai-result" style="color:var(--red);">Gagal: ${e.message}</div>`;
+  }
+}
+
+// ─── MODAL UTILS ─────────────────────────────────────────────
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+function selectChip(el, groupId) {
+  document.querySelectorAll('#'+groupId+' .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ─── GRAFIK ─────────────────────────────────────────────────
+let chartCompletion = null;
+
+function renderGrafik() {
+  // ── 1. Completion Rate 7 hari ──
+  const done = getDone();
+  const skipped = getSkipped();
+  const labels7 = [], rates = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const dayDone = done[key] || {};
+    // Hitung total task hari itu (habit aktif + todos)
+    const habits = getHabits();
+    const todosDay = (getTodos()[key] || []);
+    // Simulasi habit aktif hari itu
+    const habitsActive = habits.filter(h => {
+      const freq = h.freq || 'harian';
+      if (freq === 'harian') {
+        const interval = h.dailyInterval || 1;
+        if (interval <= 1) return true;
+        const created = new Date(parseInt(h.id.replace('h_','')) || Date.now());
+        const createdDay = new Date(created.getFullYear(), created.getMonth(), created.getDate());
+        const loopDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const dayDiff = Math.round((loopDay - createdDay) / (1000 * 60 * 60 * 24));
+        return dayDiff % interval === 0;
+      }
+      if (freq === 'mingguan') {
+        if (!(h.freqDays||[]).includes(d.getDay())) return false;
+        const wInterval = h.weekInterval || 1;
+        if (wInterval <= 1) return true;
+        const created = new Date(parseInt(h.id.replace('h_','')) || Date.now());
+        const createdMonday = new Date(created); createdMonday.setDate(created.getDate() - created.getDay());
+        const loopMonday = new Date(d); loopMonday.setDate(d.getDate() - d.getDay());
+        const weekDiff = Math.round((loopMonday - createdMonday) / (7 * 24 * 60 * 60 * 1000));
+        return weekDiff % wInterval === 0;
+      }
+      if (freq === 'bulanan') {
+        if (d.getDate() !== (h.bulkTanggal||1)) return false;
+        const created = new Date(parseInt(h.id.replace('h_','')) || Date.now());
+        const monthDiff = (d.getFullYear()-created.getFullYear())*12+(d.getMonth()-created.getMonth());
+        return monthDiff % (h.bulkInterval||1) === 0;
+      }
+      return true;
+    });
+    const loopDayEndGrafik = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+    const habitsExistedGrafik = habitsActive.filter(h => {
+      const ts = parseInt(h.id.replace('h_','')) || Date.now();
+      return ts <= loopDayEndGrafik.getTime();
+    });
+    const allTasks2 = [...habitsExistedGrafik.map(h=>({id:'habit_'+h.id})), ...todosDay.map(t=>({id:t.id}))];
+    const total = allTasks2.length;
+    const daySkippedGrafik = (skipped[key] || {});
+    const doneGrafik = allTasks2.filter(t => dayDone[t.id] === true).length;
+    const rate = total > 0 ? Math.round((doneGrafik / total) * 100) : 0;
+    labels7.push(d.toLocaleDateString('id-ID', {weekday:'short', day:'numeric'}));
+    rates.push(rate);
+  }
+
+  if (chartCompletion) chartCompletion.destroy();
+  chartCompletion = new Chart(document.getElementById('completionChart'), {
+    type: 'bar',
+    data: {
+      labels: labels7,
+      datasets: [{
+        label: 'Completion %',
+        data: rates,
+        backgroundColor: rates.map(r => r >= 80 ? '#16a34a' : r >= 50 ? '#4ade80' : '#c9e8d5'),
+        borderRadius: 8, borderSkipped: false
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#6b8f78', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#6b8f78', callback: v => v+'%' }, grid: { color: '#f0faf4' }, min: 0, max: 100 }
+      }
+    }
+  });
+
+  renderHistory();
+}
+
+function renderHistory() {
+  const done = getDone();
+  const skipped = getSkipped();
+  const habits = getHabits();
+  const el = document.getElementById('history-log');
+  if (!el) return;
+
+  let html = '';
+  const startDate = new Date(2025, 2, 8); // 8 Maret 2025, local time
+  for (let i = 0; i <= 6; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const loopDayOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (loopDayOnly < startDate) continue;
+
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const dayLabel = d.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long'});
+
+    // Rekonstruksi task hari itu
+    const habitsActive = habits.filter(h => {
+      const freq = h.freq || 'harian';
+      if (freq === 'harian') {
+        const interval = h.dailyInterval || 1;
+        if (interval <= 1) return true;
+        const created = new Date(parseInt(h.id.replace('h_','')) || Date.now());
+        const createdDay = new Date(created.getFullYear(), created.getMonth(), created.getDate());
+        const loopDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const dayDiff = Math.round((loopDay - createdDay) / (1000*60*60*24));
+        return dayDiff % interval === 0;
+      }
+      if (freq === 'mingguan') {
+        if (!(h.freqDays||[]).includes(d.getDay())) return false;
+        const wInterval = h.weekInterval || 1;
+        if (wInterval <= 1) return true;
+        const created = new Date(parseInt(h.id.replace('h_','')) || Date.now());
+        const createdMonday = new Date(created); createdMonday.setDate(created.getDate() - created.getDay());
+        const loopMonday = new Date(d); loopMonday.setDate(d.getDate() - d.getDay());
+        const weekDiff = Math.round((loopMonday - createdMonday) / (7 * 24 * 60 * 60 * 1000));
+        return weekDiff % wInterval === 0;
+      }
+      if (freq === 'bulanan') {
+        if (d.getDate() !== (h.bulkTanggal||1)) return false;
+        const created = new Date(parseInt(h.id.replace('h_','')) || Date.now());
+        const monthDiff = (d.getFullYear()-created.getFullYear())*12+(d.getMonth()-created.getMonth());
+        return monthDiff % (h.bulkInterval||1) === 0;
+      }
+      return true;
+    });
+
+    const todos = getTodos()[key] || [];
+    const dayDone = done[key] || {};
+    const daySkipped = skipped[key] || {};
+
+    // Filter habit yg sudah ada waktu hari itu
+    const loopDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const loopDayEnd = new Date(loopDay.getFullYear(), loopDay.getMonth(), loopDay.getDate(), 23, 59, 59, 999);
+    const habitsExisted = habitsActive.filter(h => {
+      const ts = parseInt(h.id.replace('h_','')) || Date.now();
+      return ts <= loopDayEnd.getTime();
+    });
+
+    const allTasks = [
+      ...habitsExisted.map(h => ({id:'habit_'+h.id, name:h.name, isHabit:true})),
+      ...todos.map(t => ({id:t.id, name:t.name, isHabit:false}))
+    ];
+
+    if (!allTasks.length) continue;
+
+    const doneCountHistory = allTasks.filter(t => dayDone[t.id] === true).length;
+    const resolvedCount = allTasks.filter(t => dayDone[t.id] || (daySkipped[t.id] && daySkipped[t.id].reason)).length;
+    const pct = Math.round((doneCountHistory / allTasks.length) * 100);
+
+    const tasksHTML = allTasks.map(t => {
+      const isDone = dayDone[t.id];
+      const skipData = daySkipped[t.id];
+      const isSkipped = !isDone && skipData && skipData.reason;
+      const status = isDone ? '✅' : isSkipped ? '⚠️' : '⬜';
+      const reasonHTML = isSkipped ? `<span class="history-reason">— ${skipData.reason}</span>` : '';
+      return `<div class="history-task">
+        <span class="history-status">${status}</span>
+        <span class="history-task-name">${t.name}${t.isHabit ? ' <span style="font-size:0.6rem;background:#dcfce7;color:#16a34a;padding:1px 4px;border-radius:3px;">HABIT</span>' : ''}</span>
+        ${reasonHTML}
+      </div>`;
+    }).join('');
+
+    html += `<div class="history-day">
+      <div class="history-day-header">
+        <div class="history-day-title">${dayLabel}</div>
+        <div class="history-day-pct">${doneCountHistory}/${allTasks.length} selesai · ${pct}%</div>
+      </div>
+      ${tasksHTML}
+    </div>`;
+  }
+
+  el.innerHTML = html || '<div class="empty-state">Belum ada history.</div>';
+}
+
+// ─── DEBUG ───────────────────────────────────────────────────
+function showDebug() {
+  const done = getDone();
+  const skipped = getSkipped();
+  const habits = getHabits();
+  const todos = getTodos();
+
+  const today = todayKey();
+  const d = new Date(); d.setDate(d.getDate()-1);
+  const yesterday = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+
+  let out = '';
+  [yesterday, today].forEach(key => {
+    const label = key === today ? 'HARI INI' : 'KEMARIN';
+    out += `=== ${label} (${key}) ===
+`;
+    out += `DONE keys: ${JSON.stringify(Object.keys(done[key]||{}))}
+`;
+    out += `SKIP keys: ${JSON.stringify(Object.keys(skipped[key]||{}))}
+`;
+    out += `TODOS: ${JSON.stringify((todos[key]||[]).map(t=>({id:t.id,name:t.name})))}
+`;
+    out += `HABITS: ${JSON.stringify(habits.map(h=>({id:'habit_'+h.id,name:h.name})))}
+
+`;
+  });
+
+  document.getElementById('debug-out').textContent = out;
+}
+
+// ─── SKIP & TOMORROW ────────────────────────────────────────
+let _skipTaskId = null;
+
+function openSkipModal(id) {
+  _skipTaskId = id;
+  document.getElementById('skip-reason').value = '';
+  openModal('skipModal');
+  setTimeout(() => document.getElementById('skip-reason').focus(), 300);
+}
+
+function saveSkip() {
+  const reason = document.getElementById('skip-reason').value.trim();
+  if (!reason) { alert('Isi alasannya dulu!'); return; }
+  const d = todayKey();
+  const skipped = getSkipped();
+  if (!skipped[d]) skipped[d] = {};
+  skipped[d][_skipTaskId] = { reason };
+  saveSkipped(skipped);
+  closeModal('skipModal');
+  renderToday();
+}
+
+function undoTask(id) {
+  const d = todayKey();
+  const done = getDone();
+  const skipped = getSkipped();
+  const wasDone = done[d] && done[d][id] === true;
+  if (done[d]) delete done[d][id];
+  if (skipped[d]) delete skipped[d][id];
+  saveDone(done);
+  saveSkipped(skipped);
+  // Kurangi streak kalau habit
+  if (wasDone && id.startsWith('habit_')) {
+    const habitId = id.replace('habit_', '');
+    const streaks = getStreaks();
+    streaks[habitId] = Math.max(0, (streaks[habitId] || 0) - 1);
+    saveStreaks(streaks);
+  }
+  renderToday();
+}
+
+function openTomorrowModal() {
+  document.getElementById('tmr-name').value = '';
+  document.getElementById('tmr-time').value = '';
+  document.getElementById('tmr-dur').value = '';
+  document.querySelector('#tmr-time-chips .chip').click();
+  document.querySelectorAll('#tmr-priority-chips .chip')[1].click();
+  openModal('tomorrowModal');
+  setTimeout(() => document.getElementById('tmr-name').focus(), 300);
+}
+
+function saveTomorrowTodo() {
+  const name = document.getElementById('tmr-name').value.trim();
+  if (!name) { alert('Isi nama task!'); return; }
+  const waktu = document.querySelector('#tmr-time-chips .chip.active')?.textContent || '🌅 Pagi';
+  const jam = document.getElementById('tmr-time').value;
+  const durasi = parseInt(document.getElementById('tmr-dur').value) || null;
+  const priority = document.querySelector('#tmr-priority-chips .chip.active')?.textContent || '🟡 Sedang';
+  const tmrKey = getTomorrowKey();
+  const todos = getTodos();
+  if (!todos[tmrKey]) todos[tmrKey] = [];
+  todos[tmrKey].push({ id: 'todo_' + Date.now(), name, waktu, jam, durasi, priority });
+  saveTodos(todos);
+  closeModal('tomorrowModal');
+  renderToday();
+}
+
+function delTomorrowTodo(idx) {
+  const tmrKey = getTomorrowKey();
+  const todos = getTodos();
+  if (todos[tmrKey]) { todos[tmrKey].splice(idx, 1); saveTodos(todos); }
+  renderToday();
+}
+
+// ─── REWARD ─────────────────────────────────────────────────
+let _rewardGrp = null;
+
+function openRewardModal(grp) {
+  _rewardGrp = grp;
+  const rewards = getRewards();
+  document.getElementById('reward-modal-title').textContent = `Reward ${grp.split(' ')[1]}`;
+  document.getElementById('reward-name-input').value = rewards[grp] || '';
+  document.getElementById('reward-del-btn').style.display = rewards[grp] ? 'block' : 'none';
+  openModal('rewardModal');
+  setTimeout(() => document.getElementById('reward-name-input').focus(), 300);
+}
+
+function editReward(grp) { openRewardModal(grp); }
+
+function saveReward() {
+  const name = document.getElementById('reward-name-input').value.trim();
+  if (!name) { alert('Isi nama reward!'); return; }
+  const rewards = getRewards();
+  rewards[_rewardGrp] = name;
+  saveRewards(rewards);
+  closeModal('rewardModal');
+  renderToday();
+}
+
+function deleteReward() {
+  if (!confirm('Hapus reward ini?')) return;
+  const rewards = getRewards();
+  delete rewards[_rewardGrp];
+  saveRewards(rewards);
+  closeModal('rewardModal');
+  renderToday();
+}
+
+function unredeemReward(grp) {
+  const d = todayKey();
+  const rewardDone = getRewardDone();
+  if (rewardDone[d]) delete rewardDone[d][grp];
+  saveRewardDone(rewardDone);
+  renderToday();
+}
+
+function redeemReward(grp) {
+  const d = todayKey();
+  const rewardDone = getRewardDone();
+  if (!rewardDone[d]) rewardDone[d] = {};
+  rewardDone[d][grp] = true;
+  saveRewardDone(rewardDone);
+  renderToday();
+}
+
+// ─── QUICK PRIORITY ─────────────────────────────────────────
+function quickPriority(id, isHabit, newPriority) {
+  const d = todayKey();
+  const todos = getTodos();
+  const t = (todos[d]||[]).find(t => t.id === id);
+  if (t) { t.priority = newPriority; saveTodos(todos); renderToday(); }
+}
+
+// ─── BACKUP & RESTORE ───────────────────────────────────────
+function exportData() {
+  const data = {
+    version: 1,
+    app: 'HabiTree',
+    exported: new Date().toISOString(),
+    habits: getHabits(),
+    todos: getTodos(),
+    streaks: getStreaks(),
+    done: getDone(),
+    rewards: getRewards(),
+    rewardDone: getRewardDone(),
+    skipped: getSkipped()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `habitree_backup_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.app !== 'HabiTree') throw new Error('File bukan backup HabiTree!');
+      if (data.habits) saveHabits(data.habits);
+      if (data.todos) saveTodos(data.todos);
+      if (data.streaks) saveStreaks(data.streaks);
+      if (data.done) saveDone(data.done);
+      if (data.rewards) saveRewards(data.rewards);
+      if (data.rewardDone) saveRewardDone(data.rewardDone);
+      if (data.skipped) saveSkipped(data.skipped);
+      document.getElementById('import-status').innerHTML = '<span style="color:var(--green);font-weight:700;">✓ Berhasil direstore!</span>';
+      renderToday();
+    } catch(err) {
+      document.getElementById('import-status').innerHTML = `<span style="color:var(--red);">✗ Gagal: ${err.message}</span>`;
+    }
+  };
+  reader.readAsText(file);
+}
+
+function resetData() {
+  if (!confirm('Yakin mau hapus semua data HabiTree? Ini ga bisa di-undo!')) return;
+  ['hk_habits','hk_todos','hk_streaks','hk_done','hk_rewards','hk_reward_done','hk_skipped','hk_tomorrow'].forEach(k => localStorage.removeItem(k));
+  renderToday();
+  document.getElementById('import-status').innerHTML = '<span style="color:var(--muted);">Data direset.</span>';
+}
+
+// ─── INIT ────────────────────────────────────────────────────
+document.getElementById('hdate').textContent = new Date().toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long'});
+// Inject streak dari backup
+(function() {
+  var existing = JSON.parse(localStorage.getItem('hk_streaks') || '{}');
+  var backup = {"h_1772932322362": 5, "h_1772932293108": 5, "h_1772943091366": 5, "h_1772943026757": 4, "h_1772932335737": 5, "h_1772933053429": 2, "h_1772966911910": 4, "h_1772932304939": 5, "h_1772943108134": 5, "h_1773003261518": 5, "h_1773003274929": 0, "h_1773138544129": 1, "h_1773138595553": 1, "h_1773214550041": 2};
+  // Merge: backup jadi base, tapi kalau existing lebih tinggi, pakai existing
+  Object.keys(backup).forEach(function(k) {
+    if (!existing[k] || existing[k] < backup[k]) existing[k] = backup[k];
+  });
+  localStorage.setItem('hk_streaks', JSON.stringify(existing));
+})();
+checkAndResetStreaks();
+renderToday();
+</script>
+</body>
+</html>
